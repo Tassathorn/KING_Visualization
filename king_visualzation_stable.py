@@ -4,7 +4,6 @@ from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
-from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
 import pandas as pd
 import seaborn as sns
 import argparse
@@ -65,6 +64,7 @@ if kin0_exists :
 if kin_exists and kin0_exists:
     df = pd.concat([dfkin,dfkin0])
     df.index = np.arange(len(df))
+    df
 elif kin_exists and (not kin0_exists):
     df = dfkin.copy()
 elif (not kin_exists) and kin0_exists:
@@ -83,59 +83,36 @@ heat_df = pd.DataFrame(data=[[0.0000 for i in range(len(name_list))] for j in ra
 multiply = 10000
 
 for i in range(len(df)):
-    heat_df[df['ID1'][i]][df['ID2'][i]] = df['Kinship'][i]*multiply 
-    heat_df[df['ID2'][i]][df['ID1'][i]] = df['Kinship'][i]*multiply 
-        
-    # if df['Kinship'][i] >= 0:
-    #     heat_df[df['ID1'][i]][df['ID2'][i]] = df['Kinship'][i]*multiply 
-    #     heat_df[df['ID2'][i]][df['ID1'][i]] = df['Kinship'][i]*multiply 
-    # else:
-    #     heat_df[df['ID1'][i]][df['ID2'][i]] = 0
-    #     heat_df[df['ID2'][i]][df['ID1'][i]] = 0
+    if df['Kinship'][i] >= 0:
+        heat_df[df['ID1'][i]][df['ID2'][i]] = df['Kinship'][i]*multiply 
+        heat_df[df['ID2'][i]][df['ID1'][i]] = df['Kinship'][i]*multiply 
+    else:
+        heat_df[df['ID1'][i]][df['ID2'][i]] = 0
+        heat_df[df['ID2'][i]][df['ID1'][i]] = 0
     
     if ((heat_df[df['ID1'][i]][df['ID2'][i]] == 0.0884*multiply) or 
         (heat_df[df['ID1'][i]][df['ID2'][i]] == 0.177*multiply) or 
         (heat_df[df['ID1'][i]][df['ID2'][i]] == 0.354*multiply)):
         heat_df[df['ID1'][i]][df['ID2'][i]] == heat_df[df['ID1'][i]][df['ID2'][i]] - 0.000001
-    elif ((heat_df[df['ID1'][i]][df['ID2'][i]] == -0.0884*multiply) or 
-        (heat_df[df['ID1'][i]][df['ID2'][i]] == -0.177*multiply) or 
-        (heat_df[df['ID1'][i]][df['ID2'][i]] == -0.354*multiply)):
-        heat_df[df['ID1'][i]][df['ID2'][i]] == heat_df[df['ID1'][i]][df['ID2'][i]] + 0.000001
         
 #------------------------ Create cmap ------------------------
+newcolors = plt.get_cmap('viridis',5000).colors
+
 idx_duplicate = int(0.354 *multiply)  # 1/(2**(3/2))
 idx_first_degree = int(0.177 *multiply)  # 1/(2**(5/2))
 idx_second_degree = int(0.0884 *multiply)  # 1/(2**(7/2))
 idx_third_degree = int(0.0442 *multiply)  # 1/(2**(9/2))
 
-boundaries = [-1*multiply, 
-              -idx_duplicate,
-              -idx_first_degree, 
-              -idx_second_degree, 
-              -idx_third_degree, 
-              0, 
-              idx_third_degree, 
-              idx_second_degree, 
-              idx_first_degree, 
-              idx_duplicate, 
-              0.5*multiply]
- # Duplicate, First degree, Second degree, Third degree, Unrelated
-colors = ["#0253c4", "#0a70ff", "#418efa", "#82b4fa", "#b8d5ff",
-          "#fee3df", "#fab6ac", "#ed5f4a", "#bd1a02", "#630e01"]
+newcolors[idx_duplicate:, :] = colors.to_rgba('#630e01')       # Duplicate
+newcolors[idx_first_degree:idx_duplicate, :] = colors.to_rgba('#bd1a02')  # First degree
+newcolors[idx_second_degree:idx_first_degree, :] = colors.to_rgba('#ed5f4a')  # Second degree
+newcolors[idx_third_degree:idx_second_degree, :] = colors.to_rgba('#fab6ac')  # Third degree
+newcolors[:idx_third_degree, :] = colors.to_rgba('#fee3df')   # Unrelated
 
-# Create a colormap
-mycmap = LinearSegmentedColormap.from_list("custom_cmap", colors, N=len(boundaries)-1)
-
-# Create a BoundaryNorm to map values to discrete colors
-norm = BoundaryNorm(boundaries, mycmap.N)
+mycmap = colors.ListedColormap(newcolors)
 
 # create the tick middle points and tick label
-tick_middle_points = [-10000,
-                      -idx_duplicate,
-                      -idx_first_degree,
-                      -idx_second_degree,
-                      -idx_third_degree,
-                      0,
+tick_middle_points = [0,
                       (0 + idx_third_degree) / 2,               # Middle of "unrelated"
                       idx_third_degree,
                       (idx_third_degree + idx_second_degree) / 2,  # Middle of "Third degree"
@@ -148,12 +125,7 @@ tick_middle_points = [-10000,
                       5000
                       ]
 
-tick_labels = [-100,
-               -round(idx_duplicate / multiply * 100, 4),
-               -round(idx_first_degree / multiply * 100, 4),
-               -round(idx_second_degree / multiply * 100, 4),
-               -round(idx_third_degree / multiply * 100, 4), 
-               0, 
+tick_labels = [0, 
                'unrelated', 
                round(idx_third_degree / multiply * 100, 4), 
                'Third degree', 
@@ -163,7 +135,7 @@ tick_labels = [-100,
                'First degree', 
                round(idx_duplicate / multiply * 100, 4),
                'Duplicate',
-               50]
+               0.5 * 100]
 
 formatted_text = []
 for i in range(len(heat_df)):
@@ -178,9 +150,8 @@ sns.heatmap(
     data=heat_df,
     ax=ax,
     vmax=5000, 
-    vmin=-10000,
+    vmin=0,
     cmap=mycmap,
-    norm=norm,
     linewidths=.5, 
     linecolor='lightgray',
     annot=formatted_text,
@@ -191,7 +162,7 @@ sns.heatmap(
 
 cbar = ax.collections[0].colorbar
 cbar.set_ticks(tick_middle_points)  # Set the ticks to the middle points
-cbar.set_ticklabels(tick_labels) # Set the tick labels to the middle points
+cbar.set_ticklabels(tick_labels) 
 
 plt.title('Potential Relationship (Kinship*100)', fontsize = 20)
 ax.set_yticklabels(ax.get_yticklabels(), rotation=1)
