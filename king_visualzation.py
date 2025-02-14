@@ -131,10 +131,12 @@ norm = BoundaryNorm(boundaries, mycmap.N)
 
 # create the tick middle points and tick label
 tick_middle_points = [-10000,
+                      -(idx_duplicate + 10000) / 2,                  # Middle of "Duplicate"
                       -idx_duplicate,
                       -idx_first_degree,
                       -idx_second_degree,
                       -idx_third_degree,
+                      -(0 + idx_third_degree) / 2,               # Middle of "unrelated" (Negative)
                       0,
                       (0 + idx_third_degree) / 2,               # Middle of "unrelated"
                       idx_third_degree,
@@ -149,12 +151,14 @@ tick_middle_points = [-10000,
                       ]
 
 tick_labels = [-100,
+               'High genetic distance\n(Negative Value)',
                -round(idx_duplicate / multiply * 100, 4),
                -round(idx_first_degree / multiply * 100, 4),
                -round(idx_second_degree / multiply * 100, 4),
                -round(idx_third_degree / multiply * 100, 4), 
+               'Unrelated and from\ndifferent populations\n(Negative Value)',
                0, 
-               'unrelated', 
+               'Unrelated', 
                round(idx_third_degree / multiply * 100, 4), 
                'Third degree', 
                round(idx_second_degree / multiply * 100, 4),
