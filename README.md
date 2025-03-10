@@ -4,7 +4,7 @@ This script processes kinship data from KING software and generates a heatmap to
 
 ## 📌 About This Script
 
-This software was developed by **Tassathorn Poonsin** to assist in tasks at **National Biobank of Thailand (NBT)**. While it was created for work purposes, this script is released as an open-source tool under the **MIT License**, allowing others to use and modify it freely.
+This scipt was developed by **Tassathorn Poonsin** to assist in tasks at **National Biobank of Thailand (NBT)**. While it was created for work purposes, this script is released as an open-source tool under the **MIT License**, allowing others to use and modify it freely.
 
 ## 🚀 Features
 
