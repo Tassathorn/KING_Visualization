@@ -26,7 +26,7 @@ pip install numpy pandas matplotlib seaborn argparse
 Run the script with:
 
 ```bash
-python king_visualization.py -i path/to/dataset -size <font_size>
+python king_visualization.py -i path/to/dataset -size font_size
 ```
 
 For example:
