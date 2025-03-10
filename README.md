@@ -41,13 +41,12 @@ This will search for `king.kin` and `king.kin0` inside `path/to/` and generate a
 
 - The script will save the heatmap to:
   ```
-  results/heatmap_YYYY-MM-DD_HH.MM.SS/kinship_heatmap_YYYY-MM-DD_HH.MM.SS.png
+  results_YYYY-MM-DD_HH.MM.SS/Heatmap_YYYY-MM-DD_HH.MM.SS.png
   ```
 - The directory structure will look like:
   ```
-  results/
-  ├── heatmap_2025-03-10_15.30.45/
-  │   ├── kinship_heatmap_2025-03-10_15.30.45.png
+  results_YYYY-MM-DD_HH.MM.SS/
+  ├── Heatmap_YYYY-MM-DD_HH.MM.SS.png
   ```
 
 ## ⚠️ Notes
