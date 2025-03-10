@@ -1,202 +1,231 @@
-#------------------------------Import library------------------------------
-import time
-from datetime import datetime
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
-import pandas as pd
-import seaborn as sns
-import argparse
-from argparse import RawTextHelpFormatter
+# ------------------------------ Import Libraries ------------------------------
 import os
-
+import sys 
+import time
 import warnings
+import argparse
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm
+
 warnings.filterwarnings("ignore")
 
-argparser = argparse.ArgumentParser(description='''***** Example : python king_visualzation.py -i <file.kin> -size <float>
-                                    ''', formatter_class=RawTextHelpFormatter)
-    
+# ------------------------------ Argument Parser ------------------------------
+argparser = argparse.ArgumentParser(
+    description="""***** Example: python king_visualization.py -i <file.kin> -size <float>""",
+    formatter_class=argparse.RawTextHelpFormatter
+)
+
 argparser.add_argument(
     "-i",
-    help=".kin file from KING <file.kin>. Note: the corresponding .kin0 file must also be in the same directory."
+    required=True,
+    type=str,
+    help="Path to the directory containing .kin and .kin0 files. "
+     "For example, use '-i path/to/king' if 'king.kin' and 'king.kin0' exist in the same directory."
 )
+
 argparser.add_argument(
-    "-size", 
-    help="font size of the heatmap <float> ")
+    "-size",
+    type=float,
+    default=7.0,
+    help="Font size of the heatmap (default: 7.0)"
+)
+
 args = argparser.parse_args()
 
-#------------------------------------------------ Prepare input ----------------------------------------
-start = time.process_time()
-current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+# ------------------------------ Prepare Input ------------------------------
+start_cpu_time = time.process_time()
+current_timestamp = datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
 
-if not os.path.exists(f'result_{current_time}'):
-    os.mkdir(f'result_{current_time}') 
+# Create results directory
+result_dir = f"result_{current_timestamp}"
+os.makedirs(result_dir, exist_ok=True)  # Avoid error if directory exists
 
+# Set input path
 input_path = args.i
-kin_exists = False
-kin0_exists = False
 
-if os.path.exists(input_path):
-    print(f"{input_path} exists, processing .kin file...")
-    kin_exists = True
-  
-if os.path.exists(input_path + '0'):
-    print(f"{input_path + '0'} exists, processing .kin0 file...")
-    kin0_exists = True
-    
-if (not kin_exists) and (not kin0_exists):
-    # If neither .kin nor .kin0 exist
-    print("Neither .kin nor .kin0 file found!")
-    
+# Check if .kin and .kin0 files exist
+kin_path = f"{input_path}.kin"
+kin_exists = os.path.exists(kin_path)
+kin0_path = f"{input_path}.kin0"
+kin0_exists = os.path.exists(kin0_path)
+
 if kin_exists:
-    dfkin = pd.read_csv(input_path,
-                    sep='\t')
-    dfkin = dfkin.drop(columns=['N_SNP', 'Z0', 'Phi', 'HetHet', 'IBS0', 'Error'])
-    dfkin = dfkin.rename(columns={"FID":"FID1"})
-    dfkin.insert(2, "FID2", dfkin['FID1'].to_list())
+    print(f"{input_path} exists, processing .kin file...")
+    dfkin = pd.read_csv(kin_path, sep='\t')
+    dfkin.drop(columns=['N_SNP', 'Z0', 'Phi', 'HetHet', 'IBS0', 'Error'], inplace=True)
+    dfkin.rename(columns={"FID": "FID1"}, inplace=True)
+    dfkin.insert(2, "FID2", dfkin["FID1"])
 
-if kin0_exists :    
-    dfkin0 = pd.read_csv(input_path + '0',
-                    sep='\t')
-    dfkin0 = dfkin0.drop(columns=['N_SNP','HetHet', 'IBS0'])
-    dfkin0
+if kin0_exists:
+    print(f"{kin0_path} exists, processing .kin0 file...")
+    dfkin0 = pd.read_csv(kin0_path, sep='\t')
+    dfkin0.drop(columns=['N_SNP', 'HetHet', 'IBS0'], inplace=True)
 
+if not kin_exists and not kin0_exists:
+    print("Error: Neither .kin nor .kin0 file found!")
+    sys.exit(1)
+
+# Combine dataframes based on file existence
 if kin_exists and kin0_exists:
-    df = pd.concat([dfkin,dfkin0])
-    df.index = np.arange(len(df))
-elif kin_exists and (not kin0_exists):
+    df = pd.concat([dfkin, dfkin0], ignore_index=True)
+elif kin_exists:
     df = dfkin.copy()
-elif (not kin_exists) and kin0_exists:
+elif kin0_exists:
     df = dfkin0.copy()
 
-for i in ["Kinship"]:
-    df[i] = df[i].astype(float)
-    
-#------------------------------------------------ Create Heatmap -----------------------------------------------------
-name_list = list(np.unique(df['ID1'].to_list() + df['ID2'].to_list()))
+# Convert 'Kinship' column to float
+df["Kinship"] = df["Kinship"].astype(float)
 
-heat_df = pd.DataFrame(data=[[0.0000 for i in range(len(name_list))] for j in range(len(name_list))],
-                       index=name_list,
-                       columns=name_list)
+# ------------------------------ Create Heatmap ------------------------------
+name_list = list(np.unique(df['ID1'].to_list() + df['ID2'].to_list()))
+heat_df = pd.DataFrame(
+    np.zeros((len(name_list), len(name_list)), dtype=float),
+    index=name_list,
+    columns=name_list
+)
 
 multiply = 10000
 
-for i in range(len(df)):
-    heat_df[df['ID1'][i]][df['ID2'][i]] = df['Kinship'][i]*multiply 
-    heat_df[df['ID2'][i]][df['ID1'][i]] = df['Kinship'][i]*multiply 
-        
-    # if df['Kinship'][i] >= 0:
-    #     heat_df[df['ID1'][i]][df['ID2'][i]] = df['Kinship'][i]*multiply 
-    #     heat_df[df['ID2'][i]][df['ID1'][i]] = df['Kinship'][i]*multiply 
-    # else:
-    #     heat_df[df['ID1'][i]][df['ID2'][i]] = 0
-    #     heat_df[df['ID2'][i]][df['ID1'][i]] = 0
-    
-    if ((heat_df[df['ID1'][i]][df['ID2'][i]] == 0.0884*multiply) or 
-        (heat_df[df['ID1'][i]][df['ID2'][i]] == 0.177*multiply) or 
-        (heat_df[df['ID1'][i]][df['ID2'][i]] == 0.354*multiply)):
-        heat_df[df['ID1'][i]][df['ID2'][i]] == heat_df[df['ID1'][i]][df['ID2'][i]] - 0.000001
-    elif ((heat_df[df['ID1'][i]][df['ID2'][i]] == -0.0884*multiply) or 
-        (heat_df[df['ID1'][i]][df['ID2'][i]] == -0.177*multiply) or 
-        (heat_df[df['ID1'][i]][df['ID2'][i]] == -0.354*multiply)):
-        heat_df[df['ID1'][i]][df['ID2'][i]] == heat_df[df['ID1'][i]][df['ID2'][i]] + 0.000001
-        
-#------------------------ Create cmap ------------------------
-idx_duplicate = int(0.354 *multiply)  # 1/(2**(3/2))
-idx_first_degree = int(0.177 *multiply)  # 1/(2**(5/2))
-idx_second_degree = int(0.0884 *multiply)  # 1/(2**(7/2))
-idx_third_degree = int(0.0442 *multiply)  # 1/(2**(9/2))
+# Set threshold values for each category of potential relationships
+thresholds = [round(1/(2**(9/2)), 4), 
+              round(1/(2**(7/2)), 4), 
+              round(1/(2**(5/2)), 4), 
+              round(1/(2**(3/2)), 4)]
 
-boundaries = [-1*multiply, 
-              -idx_duplicate,
-              -idx_first_degree, 
-              -idx_second_degree, 
-              -idx_third_degree, 
-              0, 
-              idx_third_degree, 
-              idx_second_degree, 
-              idx_first_degree, 
-              idx_duplicate, 
-              0.5*multiply]
- # Duplicate, First degree, Second degree, Third degree, Unrelated
-colors = ["#0253c4", "#0a70ff", "#418efa", "#82b4fa", "#b8d5ff",
-          "#fee3df", "#fab6ac", "#ed5f4a", "#bd1a02", "#630e01"]
+# Update heatmap matrix symmetrically
+for row in df.itertuples(index=False):
+    id1, id2, kinship = row.ID1, row.ID2, row.Kinship
+    kinship_scaled = kinship * multiply
+
+    heat_df.loc[id1, id2] = kinship_scaled
+    heat_df.loc[id2, id1] = kinship_scaled
+
+
+
+#------------------------ Create cmap ------------------------
+# Compute integer threshold values for each relationship category
+# The thresholds are derived from 1 / (2^(n/2)), where n = {3, 5, 7, 9}
+# These values are then scaled by 'multiply' to obtain the final integer representation.
+idx_duplicate = round(thresholds[3]*multiply)
+idx_first_degree = round(thresholds[2]*multiply) 
+idx_second_degree = round(thresholds[1]*multiply) 
+idx_third_degree = round(thresholds[0]*multiply) 
+
+# Define color boundaries
+boundaries = [
+    -1 * multiply, 
+    -idx_duplicate, 
+    -idx_first_degree, 
+    -idx_second_degree, 
+    -idx_third_degree, 
+    0, 
+    idx_third_degree, 
+    idx_second_degree, 
+    idx_first_degree, 
+    idx_duplicate, 
+    0.5 * multiply
+]
+
+# Define colormap colors (blue to red gradient) for each category of potential relationships:
+# Duplicate, First degree, Second degree, Third degree, and Unrelated
+colors = [
+    "#0253c4", "#0a70ff", "#418efa", "#82b4fa", "#b8d5ff",
+    "#fee3df", "#fab6ac", "#ed5f4a", "#bd1a02", "#630e01"
+]
 
 # Create a colormap
-mycmap = LinearSegmentedColormap.from_list("custom_cmap", colors, N=len(boundaries)-1)
+mycmap = LinearSegmentedColormap.from_list("custom_cmap", colors, N=len(boundaries) - 1)
 
 # Create a BoundaryNorm to map values to discrete colors
 norm = BoundaryNorm(boundaries, mycmap.N)
 
-# create the tick middle points and tick label
-tick_middle_points = [-10000,
-                      -(idx_duplicate + 10000) / 2,                  # Middle of "Duplicate"
-                      -idx_duplicate,
-                      -idx_first_degree,
-                      -idx_second_degree,
-                      -idx_third_degree,
-                      -(0 + idx_third_degree) / 2,               # Middle of "unrelated" (Negative)
-                      0,
-                      (0 + idx_third_degree) / 2,               # Middle of "unrelated"
-                      idx_third_degree,
-                      (idx_third_degree + idx_second_degree) / 2,  # Middle of "Third degree"
-                      idx_second_degree,
-                      (idx_second_degree + idx_first_degree) / 2,  # Middle of "Second degree"
-                      idx_first_degree,
-                      (idx_first_degree + idx_duplicate) / 2,       # Middle of "First degree"
-                      idx_duplicate,
-                      (idx_duplicate + 5000) / 2,                  # Middle of "Duplicate"
-                      5000
-                      ]
+# Define tick middle points for heatmap labels
+tick_middle_points = [
+    -1 * multiply,
+    -(idx_duplicate + multiply) / 2,  # Middle of "Duplicate" (Negative)
+    -idx_duplicate,
+    -idx_first_degree,
+    -idx_second_degree,
+    -idx_third_degree,
+    -idx_third_degree / 2,  # Middle of "Unrelated" (Negative)
+    0,
+    idx_third_degree / 2,  # Middle of "Unrelated" (Positive)
+    idx_third_degree,
+    (idx_third_degree + idx_second_degree) / 2,  # Middle of "Third degree"
+    idx_second_degree,
+    (idx_second_degree + idx_first_degree) / 2,  # Middle of "Second degree"
+    idx_first_degree,
+    (idx_first_degree + idx_duplicate) / 2,  # Middle of "First degree"
+    idx_duplicate,
+    (idx_duplicate + 0.5 * multiply) / 2,  # Middle of "Duplicate" (Positive)
+    0.5 * multiply
+]
 
-tick_labels = [-100,
-               'High genetic distance\n(Negative Value)',
-               -round(idx_duplicate / multiply * 100, 4),
-               -round(idx_first_degree / multiply * 100, 4),
-               -round(idx_second_degree / multiply * 100, 4),
-               -round(idx_third_degree / multiply * 100, 4), 
-               'Unrelated and from\ndifferent populations\n(Negative Value)',
-               0, 
-               'Unrelated', 
-               round(idx_third_degree / multiply * 100, 4), 
-               'Third degree', 
-               round(idx_second_degree / multiply * 100, 4),
-               'Second degree',
-               round(idx_first_degree / multiply * 100, 4),
-               'First degree', 
-               round(idx_duplicate / multiply * 100, 4),
-               'Duplicate',
-               50]
+# Convert previously scaled integer values back to percentage representation
+# Now they are divided by 'multiply' and converted to percentages.
+idx_duplicate_pct = round(idx_duplicate / multiply * 100, 4)
+idx_first_degree_pct = round(idx_first_degree / multiply * 100, 4)
+idx_second_degree_pct = round(idx_second_degree / multiply * 100, 4)
+idx_third_degree_pct = round(idx_third_degree / multiply * 100, 4)
 
-formatted_text = []
-for i in range(len(heat_df)):
-    formatted_text.append((heat_df.iloc[i] / multiply * 100).to_list())
-    
+# Define tick labels for heatmap
+tick_labels = [
+    -100,
+    "High genetic distance\n(Negative Value)",
+    -idx_duplicate_pct,
+    -idx_first_degree_pct,
+    -idx_second_degree_pct,
+    -idx_third_degree_pct,
+    "Unrelated and from\ndifferent populations\n(Negative Value)",
+    0,
+    "Unrelated",
+    idx_third_degree_pct,
+    "Third degree",
+    idx_second_degree_pct,
+    "Second degree",
+    idx_first_degree_pct,
+    "First degree",
+    idx_duplicate_pct,
+    "Duplicate",
+    50
+]
+        
+# Convert heatmap values to percentage for labeling on the heatmap
+formatted_text = (heat_df / multiply * 100).values.tolist()
+
 #------------------------ Plot Heatmap ------------------------
-mask = np.zeros_like(heat_df)
-mask[np.triu_indices_from(mask)] = True
+mask = np.triu(np.ones_like(heat_df, dtype=bool))
 
 fig, ax = plt.subplots(figsize=(20,15))
 sns.heatmap(
     data=heat_df,
     ax=ax,
-    vmax=5000, 
-    vmin=-10000,
+    vmax=0.5 * multiply, 
+    vmin=-1 * multiply,
     cmap=mycmap,
     norm=norm,
-    linewidths=.5, 
+    linewidths=0.5, 
     linecolor='lightgray',
     annot=formatted_text,
     fmt=".2f",
     mask=mask,
-    annot_kws={"fontsize": args.size}
+    # annot_kws={"fontsize": args.size} 
+    annot_kws={"fontsize": 6} 
 )
 
 cbar = ax.collections[0].colorbar
-cbar.set_ticks(tick_middle_points)  # Set the ticks to the middle points
-cbar.set_ticklabels(tick_labels) # Set the tick labels to the middle points
+cbar.set_ticks(tick_middle_points)  # Set ticks at the middle points
+cbar.set_ticklabels(tick_labels)    # Set tick labels
 
 plt.title('Potential Relationship (Kinship*100)', fontsize = 20)
-ax.set_yticklabels(ax.get_yticklabels(), rotation=1)
-plt.savefig(f'result_{current_time}/KING_Heatmap_{current_time}.png', dpi=300, bbox_inches='tight')
+plt.savefig(f'result_{current_timestamp}/Heatmap_{current_timestamp}.png', dpi=300, bbox_inches='tight')
+
+end_cpu_time = time.process_time()
+elapsed_cpu_time = end_cpu_time - start_cpu_time
+
+print(f"Computation time: {elapsed_cpu_time:.4f} seconds")
