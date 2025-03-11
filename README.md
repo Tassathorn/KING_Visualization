@@ -56,5 +56,5 @@ This will search for `king.kin` and `king.kin0` inside `path/to/` and generate a
 
 ## 🛠️ License
 
-This project is released under the [MIT License](LICENSE).
+This project is released under the [APACHE LICENSE, VERSION 2.0](LICENSE).
 
