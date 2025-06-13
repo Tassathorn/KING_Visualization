@@ -214,8 +214,8 @@ sns.heatmap(
     annot=formatted_text,
     fmt=".2f",
     mask=mask,
-    # annot_kws={"fontsize": args.size} 
-    annot_kws={"fontsize": 6} 
+    annot_kws={"fontsize": args.size} 
+    # annot_kws={"fontsize": 6} 
 )
 
 cbar = ax.collections[0].colorbar
